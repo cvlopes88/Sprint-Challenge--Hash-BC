@@ -19,14 +19,19 @@ def proof_of_work(last_proof):
     - p is the previous proof, and p' is the new proof
     - Use the same method to generate SHA-256 hashes as the examples in class
     """
-
+    last_encoded = str(last_proof).encode()
+    last_hash = hashlib.sha256(last_encoded).hexdigest()
     start = timer()
 
     print("Searching for next proof")
     proof = 0
     #  TODO: Your code here
+    while not valid_proof(last_hash, proof):
+        if (timer() - start) > 15:
+            return "timeout"
+        proof += 3
+    print("Proof found: " + str(proof) + "in" + str(timer() - start))
 
-    print("Proof found: " + str(proof) + " in " + str(timer() - start))
     return proof
 
 
@@ -40,7 +45,9 @@ def valid_proof(last_hash, proof):
     """
 
     # TODO: Your code here!
-    pass
+    encoded_proof = str(proof).encode()
+    current_hash = hashlib.sha256(encoded_proof).hexdigest()
+    return last_hash[-6:] == current_hash[:6]
 
 
 if __name__ == '__main__':
@@ -65,14 +72,26 @@ if __name__ == '__main__':
     while True:
         # Get the last proof from the server
         r = requests.get(url=node + "/last_proof")
-        data = r.json()
+        try:
+           data = r.json()
+        except ValueError:
+            print("ERROR: NOT a json Response")
+            print("Response returned:")
+            print(r)
+            continue
         new_proof = proof_of_work(data.get('proof'))
 
         post_data = {"proof": new_proof,
                      "id": id}
 
         r = requests.post(url=node + "/mine", json=post_data)
-        data = r.json()
+        try:
+            data = r.json()
+        except ValueError:
+            print("ERROR: NOT a json Response")
+            print("Response returned:")
+            print(r)
+            continue
         if data.get('message') == 'New Block Forged':
             coins_mined += 1
             print("Total coins mined: " + str(coins_mined))
